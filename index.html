@@ -95,7 +95,7 @@ let cur=null;
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2200)}
 function total(st){return STAGES[st].secoes.reduce((a,s)=>a+s[1].length,0)}
 let sess=ls.get('cc_sess',null);
-async function authReq(path,body,method='POST',tok){const r=await fetch(SUPA_URL+'/auth/v1/'+path,{method,headers:{apikey:SUPA_KEY,Authorization:'Bearer '+tk,'Content-Type':'application/json',...(tok?{Authorization:'Bearer '+tok}:{})},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.error_description||j.msg||j.message||'Falha');e.st=r.status;throw e}return j}
+async function authReq(path,body,method='POST',tok){const r=await fetch(SUPA_URL+'/auth/v1/'+path,{method,headers:{apikey:SUPA_KEY,'Content-Type':'application/json',...(tok?{Authorization:'Bearer '+tok}:{})},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.error_description||j.msg||j.message||'Falha');e.st=r.status;throw e}return j}
 function setSess(j){sess={at:j.access_token,rt:j.refresh_token,exp:Date.now()+j.expires_in*1000,id:j.user.id,email:j.user.email,nome:j.user.user_metadata?.nome||''};ls.set('cc_sess',sess)}
 async function token(){if(!sess)return null;if(Date.now()>sess.exp-60000){try{setSess(await authReq('token?grant_type=refresh_token',{refresh_token:sess.rt}))}catch(e){if(e.st>=400&&e.st<500){sess=null;ls.set('cc_sess',null)}return null}}return sess.at}
 function usr(){const u=$('#usr');if(!sess){u.innerHTML='';return}u.innerHTML=`<div>${esc(sess.nome||sess.email)}</div><button id="sair">Sair</button>`;$('#sair').onclick=sair}
