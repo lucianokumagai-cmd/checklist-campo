@@ -35,3 +35,19 @@ $$;
 alter policy "escritorio le" on public.checklists using ((select public.is_escritorio()));
 -- Para liberar alguém do escritório:
 -- insert into public.escritorio_usuarios (email) values ('pessoa@empresa.com.br');
+
+-- Login obrigatório no app de campo: cada checklist registra quem preencheu
+alter table public.checklists
+  add column usuario_id uuid default auth.uid() references auth.users(id),
+  add column usuario_email text default (auth.jwt()->>'email'),
+  add column usuario_nome text check (length(usuario_nome) <= 200);
+alter policy "campo insere" on public.checklists to authenticated with check (usuario_id = (select auth.uid()));
+create or replace function public.checklists_set_usuario() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  new.usuario_email := auth.jwt()->>'email';
+  new.recebido_em := now();
+  return new;
+end $$;
+create trigger checklists_set_usuario before insert on public.checklists
+for each row execute function public.checklists_set_usuario();

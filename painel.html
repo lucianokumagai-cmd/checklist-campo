@@ -76,16 +76,16 @@ async function load(){
 }
 function shell(){
   app.innerHTML=`<div class="filt card"><label>Etapa<select id="fe"><option value="">Todas</option><option value="saida">Saída da sede</option><option value="retorno">Retorno do campo</option></select></label><label>De<input type="date" id="fd"></label><label>Até<input type="date" id="fa"></label><label>Buscar<input type="search" id="fq" placeholder="Responsável, equipe, placa, OS, local"></label><label><span style="visibility:hidden">x</span><select id="fp"><option value="">Com e sem pendências</option><option value="1">Só com pendências</option></select></label></div>
-  <div class="kpis" id="kp"></div><div id="det"></div><div class="card"><table class="stack"><thead><tr><th>Concluído</th><th>Etapa</th><th>Responsável</th><th>Equipe / veículo</th><th>OS / local</th><th class="num">Itens</th></tr></thead><tbody id="tb"></tbody></table><p class="mut" id="vz"></p></div>
+  <div class="kpis" id="kp"></div><div id="det"></div><div class="card"><table class="stack"><thead><tr><th>Concluído</th><th>Etapa</th><th>Responsável / preenchido por</th><th>Equipe / veículo</th><th>OS / local</th><th class="num">Itens</th></tr></thead><tbody id="tb"></tbody></table><p class="mut" id="vz"></p></div>
   <p class="mut">Conectado como ${esc(sess.email)} · <button class="ghost" id="rf" style="min-height:32px;padding:2px 10px">Atualizar</button></p>`;
   ['fe','fd','fa','fq','fp'].forEach(i=>$('#'+i).oninput=draw);$('#rf').onclick=load;draw();
 }
 function filtra(){const e=$('#fe').value,d=$('#fd').value,a=$('#fa').value,q=$('#fq').value.toLowerCase().trim(),p=$('#fp').value;
-  return rows.filter(r=>{const dia=new Date(r.concluido_em).toLocaleDateString('sv');if(e&&r.etapa!==e)return false;if(d&&dia<d)return false;if(a&&dia>a)return false;if(p&&!r.pendencias.length)return false;if(q&&![r.responsavel,r.equipe,r.veiculo,r.ordem_servico,r.local].join(' ').toLowerCase().includes(q))return false;return true})}
+  return rows.filter(r=>{const dia=new Date(r.concluido_em).toLocaleDateString('sv');if(e&&r.etapa!==e)return false;if(d&&dia<d)return false;if(a&&dia>a)return false;if(p&&!r.pendencias.length)return false;if(q&&![r.responsavel,r.usuario_nome,r.usuario_email,r.equipe,r.veiculo,r.ordem_servico,r.local].join(' ').toLowerCase().includes(q))return false;return true})}
 function draw(){
   const f=filtra(),pend=f.filter(r=>r.pendencias.length).length;
   $('#kp').innerHTML=`<div class="kpi"><b>${f.length}</b><span>checklists no filtro</span></div><div class="kpi"><b>${f.filter(r=>r.etapa==='saida').length}</b><span>saídas da sede</span></div><div class="kpi"><b>${f.filter(r=>r.etapa==='retorno').length}</b><span>retornos do campo</span></div><div class="kpi ${pend?'w':''}"><b>${pend}</b><span>com pendências</span></div>`;
-  $('#tb').innerHTML=f.map(r=>`<tr class="r" data-id="${esc(r.id)}" tabindex="0"><td>${fmt(r.concluido_em)}</td><td>${NOME[r.etapa]||esc(r.etapa)}</td><td>${esc(r.responsavel)}</td><td>${esc(r.equipe)}${r.veiculo?'<div class="mut">'+esc(r.veiculo)+'</div>':''}</td><td>${esc(r.ordem_servico)}${r.local?'<div class="mut">'+esc(r.local)+'</div>':''}</td><td class="num"><span class="tag ${r.pendencias.length?'w':''}">${Number(r.itens_ok)}/${Number(r.itens_total)}</span></td></tr>`).join('');
+  $('#tb').innerHTML=f.map(r=>`<tr class="r" data-id="${esc(r.id)}" tabindex="0"><td>${fmt(r.concluido_em)}</td><td>${NOME[r.etapa]||esc(r.etapa)}</td><td>${esc(r.responsavel)}${r.usuario_email?'<div class="mut">por '+esc(r.usuario_nome||r.usuario_email)+'</div>':''}</td><td>${esc(r.equipe)}${r.veiculo?'<div class="mut">'+esc(r.veiculo)+'</div>':''}</td><td>${esc(r.ordem_servico)}${r.local?'<div class="mut">'+esc(r.local)+'</div>':''}</td><td class="num"><span class="tag ${r.pendencias.length?'w':''}">${Number(r.itens_ok)}/${Number(r.itens_total)}</span></td></tr>`).join('');
   $('#vz').textContent=f.length?'':rows.length?'Nenhum checklist com esses filtros.':'Nenhum checklist recebido ainda. Eles aparecem aqui assim que uma equipe conclui no app.';
   app.querySelectorAll('tr.r').forEach(t=>{const o=()=>det(rows.find(r=>r.id===t.dataset.id));t.onclick=o;t.onkeydown=e=>{if(e.key==='Enter')o()}});
 }
@@ -93,7 +93,7 @@ function det(r){
   $('#det').innerHTML=`<div class="card det"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 style="font-size:24px">${NOME[r.etapa]||''} · ${esc(r.responsavel)}</h3><button class="ghost" id="fx">Fechar</button></div>
   <p class="mut">Iniciado ${fmt(r.iniciado_em)} · concluído ${fmt(r.concluido_em)} · recebido ${fmt(r.recebido_em)}</p>
   <p>${[['Equipe',r.equipe],['Veículo',r.veiculo],['OS / projeto',r.ordem_servico],['Local',r.local]].filter(x=>x[1]).map(x=>`<b>${x[0]}:</b> ${esc(x[1])}`).join('<br>')}</p>
-  ${r.observacoes?`<p><b>Observações:</b> ${esc(r.observacoes)}</p>`:''}
+  ${r.usuario_email?`<p><b>Preenchido por:</b> ${esc(r.usuario_nome||'')} (${esc(r.usuario_email)})</p>`:''}${r.observacoes?`<p><b>Observações:</b> ${esc(r.observacoes)}</p>`:''}
   ${(r.itens||[]).map(s=>`<h3 style="font-size:18px;margin-top:10px">${esc(s.secao)}</h3><ul>${(s.itens||[]).map(i=>`<li class="${i.ok?'':'no'}">${i.ok?'✓':'✗ Pendente:'} ${esc(i.item)}</li>`).join('')}</ul>`).join('')}</div>`;
   $('#fx').onclick=()=>$('#det').innerHTML='';$('#det').scrollIntoView({behavior:'smooth'});
 }
