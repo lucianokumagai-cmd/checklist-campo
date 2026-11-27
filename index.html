@@ -106,8 +106,8 @@ document.addEventListener('input',e=>{const t=e.target;if(t.id==='u_cel'||t.data
 const PAPEL={admin:'Administrador',gestor:'Gestor (responsável)',usuario:'Usuário'};
 let tela='checklist';
 function usr(){const u=$('#usr');if(!sess||!sess.perfil){u.innerHTML='';return}u.innerHTML=`<div>${esc(sess.perfil.nome)}</div><div style="opacity:.85">${PAPEL[sess.perfil.papel]}</div><button id="sair">Sair</button>`;$('#sair').onclick=sair}
-function nav(){return sess?.perfil?.papel==='admin'?`<div class="nav"><button class="${tela==='usuarios'?'on':'sec'}" id="nvU">Cadastro de usuários</button><button class="${tela==='checklist'?'on':'sec'}" id="nvC">Checklist</button></div>`:''}
-function bindNav(){$('#nvU')&&($('#nvU').onclick=()=>{tela='usuarios';usuarios()});$('#nvC')&&($('#nvC').onclick=()=>{tela='checklist';home()})}
+function nav(){if(sess?.perfil?.papel!=='admin')return'';const B=(id,t,l)=>`<button class="${tela===t?'on':'sec'}" id="${id}">${l}</button>`;return`<div class="nav">${B('nvU','cadastro','Cadastro')}${B('nvL','usuarios','Usuários')}${B('nvC','checklist','Checklist')}</div>`}
+function bindNav(){$('#nvU')&&($('#nvU').onclick=()=>{tela='cadastro';usuarios()});$('#nvL')&&($('#nvL').onclick=()=>{tela='usuarios';paginaUsuarios()});$('#nvC')&&($('#nvC').onclick=()=>{tela='checklist';home()})}
 function sair(){const pend=ls.get('cc_hist',[]).filter(r=>!r.env&&r.user?.id===sess.id).length;if(pend){toast(pend+' checklist(s) ainda não enviado(s). Conecte à internet antes de sair.');return}if(ls.get('cc_draft',null)){toast('Conclua ou descarte o checklist em andamento antes de sair.');return}sess=null;ls.set('cc_sess',null);ls.set('cc_last',{});start()}
 function login(msg){cur=null;usr();
   app.innerHTML=`<form class="card login" id="lf"><h2 style="font-size:28px">Entrar</h2><p class="mut">Use o e-mail e a senha cadastrados pelo administrador. É preciso internet só no primeiro acesso.</p><label class="f">E-mail<input type="email" id="em" autocomplete="username" required></label><label class="f">Senha<input type="password" id="pw" autocomplete="current-password" required></label><p class="err" id="er">${esc(msg||'')}</p><button class="pri" style="width:100%">Entrar</button><button type="button" class="link" id="esq">Esqueci a senha</button></form>`;
@@ -142,7 +142,7 @@ async function start(){
   if(!sess.perfil.ativo){sess=null;ls.set('cc_sess',null);return login('Seu acesso está desativado. Fale com o administrador.')}
   if(sess.perfil.trocar_senha)return novaSenha('Crie sua senha','Este é seu primeiro acesso. Troque a senha inicial por uma senha só sua.');
   sess.nome=sess.perfil.nome;usr();
-  if(sess.perfil.papel==='admin'&&!start.feito){start.feito=1;tela='usuarios';usuarios()}else{tela='checklist';home()}
+  if(sess.perfil.papel==='admin'&&!start.feito){start.feito=1;tela='cadastro';usuarios()}else{tela='checklist';home()}
   sync();
 }
 async function recuperacao(){
@@ -157,20 +157,28 @@ async function recuperacao(){
 }
 async function usuarios(){usr();
   app.innerHTML=`${nav()}<form class="card" id="uf"><h3>Cadastrar novo usuário</h3><div class="fields"><label class="f">Nome completo<input type="text" id="u_nome" required autocomplete="off"></label><label class="f">Celular com DDD (WhatsApp)<input type="text" id="u_cel" inputmode="tel" placeholder="(11) 99999-9999" maxlength="15" autocomplete="off"></label><label class="f">E-mail<input type="email" id="u_em" required autocomplete="off"></label><label class="f">Qualificação<select id="u_pap"><option value="usuario">Usuário</option><option value="gestor">Gestor (responsável)</option><option value="admin">Administrador</option></select></label></div>
-  <p class="mut">A senha inicial será <b>123456</b>. O sistema pede a troca no primeiro login.</p><p class="err" id="uer"></p><button class="pri">Cadastrar</button></form>
-  <div class="card"><h3>Usuários cadastrados <small id="ucount"></small></h3><ul class="users" id="ul"><li class="mut">Carregando…</li></ul></div>`;
+  <p class="mut">A senha inicial será <b>123456</b>. O sistema pede a troca no primeiro login.</p><p class="err" id="uer"></p><button class="pri">Cadastrar</button></form><p class="mut">Para ver todos os usuários, alterar qualificação ou resetar senha, use a aba <b>Usuários</b>.</p>`;
   bindNav();
   $('#uf').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('button'),er=$('#uer');er.textContent='';b.disabled=true;
     if($('#u_pap').value==='gestor'&&$('#u_cel').value.replace(/\D/g,'').length<10){er.textContent='Gestor precisa de celular com DDD: é para ele que vai o relatório pelo WhatsApp.';b.disabled=false;return}
-    try{const j=await fn('admin-usuarios',{acao:'criar',nome:$('#u_nome').value,celular:$('#u_cel').value,email:$('#u_em').value,papel:$('#u_pap').value});if(j.erro)throw new Error(j.erro);toast('Usuário cadastrado');e.target.reset();lista();carregaPerfil()}
+    try{const j=await fn('admin-usuarios',{acao:'criar',nome:$('#u_nome').value,celular:$('#u_cel').value,email:$('#u_em').value,papel:$('#u_pap').value});if(j.erro)throw new Error(j.erro);toast('Usuário cadastrado');e.target.reset();carregaPerfil()}
     catch(x){er.textContent=x.message==='Failed to fetch'?'Sem internet.':x.message}b.disabled=false};
-  lista();
+}
+let usCache=[];
+function paginaUsuarios(){usr();
+  app.innerHTML=`${nav()}<div class="card"><h3>Usuários cadastrados <small id="ucount"></small></h3>
+  <div class="fields" style="margin-bottom:8px"><label class="f">Buscar<input type="search" id="ubq" placeholder="Nome, e-mail ou celular"></label><label class="f">Qualificação<select id="ubp"><option value="">Todas</option><option value="admin">Administradores</option><option value="gestor">Gestores</option><option value="usuario">Usuários</option></select></label><label class="f">Situação<select id="uba"><option value="">Todos</option><option value="1">Ativos</option><option value="0">Desativados</option></select></label></div>
+  <ul class="users" id="ul"><li class="mut">Carregando…</li></ul></div>`;
+  bindNav();['ubq','ubp','uba'].forEach(i=>$('#'+i).oninput=()=>desenha());lista();
 }
 async function lista(){const ul=$('#ul');if(!ul)return;
   let us;try{const j=await fn('admin-usuarios',{acao:'listar'});if(j.erro)throw new Error(j.erro);us=j.usuarios}catch(x){ul.innerHTML=`<li class="err">${esc(x.message==='Failed to fetch'?'Sem internet para carregar a lista.':x.message)}</li>`;return}
-  $('#ucount').textContent=us.length+' no total';
-  ul.innerHTML=us.map(u=>`<li data-id="${esc(u.id)}"><div><b>${esc(u.nome)}</b>${u.ativo?'':' <span class="tag w">desativado</span>'}${u.trocar_senha?' <span class="tag">senha inicial</span>':''}<div class="mut">${esc(u.email)}${u.celular?' · '+esc(mascCel(u.celular)):''}</div></div>
-  <div class="row"><select data-a="papel" aria-label="Qualificação">${Object.entries(PAPEL).map(([k,v])=>`<option value="${k}" ${u.papel===k?'selected':''}>${v}</option>`).join('')}</select><button class="ghost" data-a="ativo">${u.ativo?'Desativar':'Reativar'}</button><button class="ghost" data-a="reset">Voltar senha para 123456</button></div><div class="row"><input type="text" data-a="cel" inputmode="tel" value="${esc(mascCel(u.celular))}" placeholder="(11) 99999-9999" maxlength="15" aria-label="Celular" style="flex:1;margin:0;min-width:160px"><button class="ghost" data-a="salvacel">Salvar celular</button></div></li>`).join('');
+  usCache=us;desenha()}
+function desenha(){const ul=$('#ul');if(!ul)return;const q=($('#ubq')?.value||'').toLowerCase().trim(),fp=$('#ubp')?.value,fa=$('#uba')?.value;
+  const us=usCache.filter(u=>(!fp||u.papel===fp)&&(!fa||String(+u.ativo)===fa)&&(!q||[u.nome,u.email,u.celular,(u.celular||'').replace(/\D/g,'')].join(' ').toLowerCase().includes(q)));
+  $('#ucount').textContent=(us.length===usCache.length?'':us.length+' de ')+usCache.length+' no total';
+  ul.innerHTML=us.length?us.map(u=>`<li data-id="${esc(u.id)}"><div><b>${esc(u.nome)}</b>${u.ativo?'':' <span class="tag w">desativado</span>'}${u.trocar_senha?' <span class="tag">senha inicial</span>':''}<div class="mut">${esc(u.email)}${u.celular?' · '+esc(mascCel(u.celular)):''}</div></div>
+  <div class="row"><select data-a="papel" aria-label="Qualificação">${Object.entries(PAPEL).map(([k,v])=>`<option value="${k}" ${u.papel===k?'selected':''}>${v}</option>`).join('')}</select><button class="ghost" data-a="ativo">${u.ativo?'Desativar':'Reativar'}</button><button class="ghost" data-a="reset">Voltar senha para 123456</button></div><div class="row"><input type="text" data-a="cel" inputmode="tel" value="${esc(mascCel(u.celular))}" placeholder="(11) 99999-9999" maxlength="15" aria-label="Celular" style="flex:1;margin:0;min-width:160px"><button class="ghost" data-a="salvacel">Salvar celular</button></div></li>`).join(''):'<li class="mut">Nenhum usuário com esses filtros.</li>';
   ul.querySelectorAll('li[data-id]').forEach(li=>{const id=li.dataset.id,u=us.find(x=>x.id===id);
     const run=async(body,msg)=>{try{const j=await fn('admin-usuarios',{id,...body});if(j.erro)throw new Error(j.erro);toast(msg);lista();carregaPerfil()}catch(x){toast(x.message);lista()}};
     li.querySelector('[data-a=papel]').onchange=e=>run({acao:'atualizar',papel:e.target.value},'Qualificação alterada');
