@@ -159,7 +159,7 @@ async function usuarios(){usr();
   <div class="card"><h3>Usuários cadastrados <small id="ucount"></small></h3><ul class="users" id="ul"><li class="mut">Carregando…</li></ul></div>`;
   bindNav();
   $('#uf').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('button'),er=$('#uer');er.textContent='';b.disabled=true;
-    try{const j=await fn('admin-usuarios',{acao:'criar',nome:$('#u_nome').value,celular:$('#u_cel').value,email:$('#u_em').value,papel:$('#u_pap').value});if(j.erro)throw new Error(j.erro);toast('Usuário cadastrado');e.target.reset();lista()}
+    try{const j=await fn('admin-usuarios',{acao:'criar',nome:$('#u_nome').value,celular:$('#u_cel').value,email:$('#u_em').value,papel:$('#u_pap').value});if(j.erro)throw new Error(j.erro);toast('Usuário cadastrado');e.target.reset();lista();carregaPerfil()}
     catch(x){er.textContent=x.message==='Failed to fetch'?'Sem internet.':x.message}b.disabled=false};
   lista();
 }
@@ -169,7 +169,7 @@ async function lista(){const ul=$('#ul');if(!ul)return;
   ul.innerHTML=us.map(u=>`<li data-id="${esc(u.id)}"><div><b>${esc(u.nome)}</b>${u.ativo?'':' <span class="tag w">desativado</span>'}${u.trocar_senha?' <span class="tag">senha inicial</span>':''}<div class="mut">${esc(u.email)}${u.celular?' · '+esc(u.celular):''}</div></div>
   <div class="row"><select data-a="papel" aria-label="Qualificação">${Object.entries(PAPEL).map(([k,v])=>`<option value="${k}" ${u.papel===k?'selected':''}>${v}</option>`).join('')}</select><button class="ghost" data-a="ativo">${u.ativo?'Desativar':'Reativar'}</button><button class="ghost" data-a="reset">Voltar senha para 123456</button></div></li>`).join('');
   ul.querySelectorAll('li[data-id]').forEach(li=>{const id=li.dataset.id,u=us.find(x=>x.id===id);
-    const run=async(body,msg)=>{try{const j=await fn('admin-usuarios',{id,...body});if(j.erro)throw new Error(j.erro);toast(msg);lista()}catch(x){toast(x.message);lista()}};
+    const run=async(body,msg)=>{try{const j=await fn('admin-usuarios',{id,...body});if(j.erro)throw new Error(j.erro);toast(msg);lista();carregaPerfil()}catch(x){toast(x.message);lista()}};
     li.querySelector('[data-a=papel]').onchange=e=>run({acao:'atualizar',papel:e.target.value},'Qualificação alterada');
     li.querySelector('[data-a=ativo]').onclick=e=>{if(!e.target.dataset.sure){e.target.dataset.sure=1;e.target.textContent='Toque de novo para confirmar';return}run({acao:'atualizar',ativo:!u.ativo},u.ativo?'Usuário desativado':'Usuário reativado')};
     li.querySelector('[data-a=reset]').onclick=e=>{if(!e.target.dataset.sure){e.target.dataset.sure=1;e.target.textContent='Toque de novo para confirmar';return}run({acao:'resetar_senha'},'Senha voltou para 123456')};
