@@ -51,3 +51,7 @@ begin
 end $$;
 create trigger checklists_set_usuario before insert on public.checklists
 for each row execute function public.checklists_set_usuario();
+
+-- Perfis (administrador, gestor, usuário). Ver migração "perfis_usuarios" no projeto Supabase.
+-- Cadastro de usuários: Edge Function supabase/functions/admin-usuarios (só administradores).
+-- Envio do relatório ao gestor responsável: Edge Function supabase/functions/enviar-relatorio (Resend).
