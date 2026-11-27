@@ -131,6 +131,8 @@ function novaSenha(titulo,texto){usr();
     try{await authReq('user',{password:a},'PUT',await token());await rest('rpc/marcar_senha_trocada',{method:'POST',body:'{}'});if(sess.perfil)sess.perfil.trocar_senha=false;ls.set('cc_sess',sess);toast('Senha alterada');start()}
     catch(x){er.textContent=/different|same/i.test(x.message)?'A nova senha precisa ser diferente da atual.':x.st?x.message:'Sem internet.';bt.disabled=false}};
 }
+function opcoesResp(){const sel=$('#f_resp');if(!sel||!cur)return;const gs=ls.get('cc_gestores',[]);sel.innerHTML=`<option value="">${gs.length?'Selecione o gestor':'Nenhum gestor cadastrado'}</option>`+gs.map(g=>`<option value="${esc(g.id)}" ${cur.info.resp_id===g.id?'selected':''}>${esc(g.nome)}</option>`).join('')}
+async function atualizaGestores(){try{const g=await rest('perfis?select=id,nome,email,celular&papel=eq.gestor&ativo=eq.true&order=nome');if(Array.isArray(g)){ls.set('cc_gestores',g);opcoesResp()}}catch(e){}}
 async function carregaPerfil(){
   try{const p=await rest('perfis?select=*&id=eq.'+sess.id);sess.perfil=p[0]||null;sess.semPerfil=!p[0];ls.set('cc_sess',sess)}catch(e){if(e.st===401){sess=null;ls.set('cc_sess',null)}}
   try{const g=await rest('perfis?select=id,nome,email,celular&papel=eq.gestor&ativo=eq.true&order=nome');if(g)ls.set('cc_gestores',g)}catch(e){}
@@ -212,6 +214,7 @@ function form(){
   <div id="pend"></div>
   <div class="actions"><button class="pri" id="fin" style="flex:1">Concluir checklist</button></div>`;
   app.querySelectorAll('input[type=text]').forEach(i=>i.oninput=()=>{cur.info[i.dataset.k]=i.value;save()});
+  atualizaGestores();
   $('#f_resp').onchange=e=>{const g=ls.get('cc_gestores',[]).find(x=>x.id===e.target.value);cur.info.resp_id=g?g.id:'';cur.info.resp=g?g.nome:'';save()};
   $('#obs').oninput=e=>{cur.obs=e.target.value;save()};
   app.querySelectorAll('input[type=checkbox]').forEach(c=>c.onchange=()=>{c.checked?cur.marc[c.dataset.id]=Date.now():delete cur.marc[c.dataset.id];save();prog();$('#pend').innerHTML=''});
