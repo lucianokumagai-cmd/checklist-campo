@@ -93,7 +93,7 @@ function det(r){
   $('#det').innerHTML=`<div class="card det"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 style="font-size:24px">${NOME[r.etapa]||''} · ${esc(r.responsavel)}</h3><button class="ghost" id="fx">Fechar</button></div>
   <p class="mut">Iniciado ${fmt(r.iniciado_em)} · concluído ${fmt(r.concluido_em)} · recebido ${fmt(r.recebido_em)}</p>
   <p>${[['Equipe',r.equipe],['Veículo',r.veiculo],['OS / projeto',r.ordem_servico],['Local',r.local]].filter(x=>x[1]).map(x=>`<b>${x[0]}:</b> ${esc(x[1])}`).join('<br>')}</p>
-  ${r.usuario_email?`<p><b>Preenchido por:</b> ${esc(r.usuario_nome||'')} (${esc(r.usuario_email)})</p>`:''}${r.responsavel_id?`<p><b>Relatório ao responsável:</b> ${r.relatorio_enviado_em?'enviado por e-mail em '+fmt(r.relatorio_enviado_em):r.relatorio_erro?'não enviado ('+esc(r.relatorio_erro)+')':'pendente'}</p>`:''}${r.observacoes?`<p><b>Observações:</b> ${esc(r.observacoes)}</p>`:''}
+  ${r.usuario_email?`<p><b>Preenchido por:</b> ${esc(r.usuario_nome||'')} (${esc(r.usuario_email)})</p>`:''}${r.observacoes?`<p><b>Observações:</b> ${esc(r.observacoes)}</p>`:''}
   ${(r.itens||[]).map(s=>`<h3 style="font-size:18px;margin-top:10px">${esc(s.secao)}</h3><ul>${(s.itens||[]).map(i=>`<li class="${i.ok?'':'no'}">${i.ok?'✓':'✗ Pendente:'} ${esc(i.item)}</li>`).join('')}</ul>`).join('')}</div>`;
   $('#fx').onclick=()=>$('#det').innerHTML='';$('#det').scrollIntoView({behavior:'smooth'});
 }

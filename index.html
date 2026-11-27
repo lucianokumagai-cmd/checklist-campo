@@ -115,7 +115,7 @@ function login(msg){cur=null;usr();
     catch(x){$('#er').textContent=x.st===400?'E-mail ou senha incorretos.':x.st?x.message:'Sem internet. Conecte-se para entrar pela primeira vez.';b.disabled=false;b.textContent='Entrar'}};
 }
 function esqueci(em){
-  app.innerHTML=`<form class="card login" id="ef"><h2 style="font-size:28px">Esqueci a senha</h2><p class="mut">Informe seu e-mail. Enviaremos um link para você criar uma nova senha.</p><label class="f">E-mail<input type="email" id="em" value="${esc(em)}" required></label><p class="err" id="er"></p><button class="pri" style="width:100%">Enviar link</button><button type="button" class="link" id="vl">Voltar ao login</button></form>`;
+  app.innerHTML=`<form class="card login" id="ef"><h2 style="font-size:28px">Esqueci a senha</h2><p class="mut">Informe seu e-mail. Enviaremos um link para você criar uma nova senha. Se o e-mail não chegar, peça ao administrador para voltar sua senha para 123456.</p><label class="f">E-mail<input type="email" id="em" value="${esc(em)}" required></label><p class="err" id="er"></p><button class="pri" style="width:100%">Enviar link</button><button type="button" class="link" id="vl">Voltar ao login</button></form>`;
   $('#vl').onclick=()=>login();
   $('#ef').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('button');b.disabled=true;
     try{await authReq('recover?redirect_to='+encodeURIComponent(location.origin+location.pathname),{email:$('#em').value.trim()});app.innerHTML=`<div class="card login"><h2 style="font-size:28px">Verifique seu e-mail</h2><p>Se ${esc($('#em')?.value||'o e-mail')} estiver cadastrado, você vai receber um link para criar uma nova senha. Confira também a caixa de spam.</p><button class="pri" id="vl" style="width:100%">Voltar ao login</button></div>`;$('#vl').onclick=()=>login()}
@@ -154,11 +154,12 @@ async function recuperacao(){
   return true;
 }
 async function usuarios(){usr();
-  app.innerHTML=`${nav()}<form class="card" id="uf"><h3>Cadastrar novo usuário</h3><div class="fields"><label class="f">Nome completo<input type="text" id="u_nome" required autocomplete="off"></label><label class="f">Celular<input type="text" id="u_cel" inputmode="tel" placeholder="(11) 99999-9999"></label><label class="f">E-mail<input type="email" id="u_em" required autocomplete="off"></label><label class="f">Qualificação<select id="u_pap"><option value="usuario">Usuário</option><option value="gestor">Gestor (responsável)</option><option value="admin">Administrador</option></select></label></div>
+  app.innerHTML=`${nav()}<form class="card" id="uf"><h3>Cadastrar novo usuário</h3><div class="fields"><label class="f">Nome completo<input type="text" id="u_nome" required autocomplete="off"></label><label class="f">Celular com DDD (WhatsApp)<input type="text" id="u_cel" inputmode="tel" placeholder="(11) 99999-9999"></label><label class="f">E-mail<input type="email" id="u_em" required autocomplete="off"></label><label class="f">Qualificação<select id="u_pap"><option value="usuario">Usuário</option><option value="gestor">Gestor (responsável)</option><option value="admin">Administrador</option></select></label></div>
   <p class="mut">A senha inicial será <b>123456</b>. O sistema pede a troca no primeiro login.</p><p class="err" id="uer"></p><button class="pri">Cadastrar</button></form>
   <div class="card"><h3>Usuários cadastrados <small id="ucount"></small></h3><ul class="users" id="ul"><li class="mut">Carregando…</li></ul></div>`;
   bindNav();
   $('#uf').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('button'),er=$('#uer');er.textContent='';b.disabled=true;
+    if($('#u_pap').value==='gestor'&&$('#u_cel').value.replace(/\D/g,'').length<10){er.textContent='Gestor precisa de celular com DDD: é para ele que vai o relatório pelo WhatsApp.';b.disabled=false;return}
     try{const j=await fn('admin-usuarios',{acao:'criar',nome:$('#u_nome').value,celular:$('#u_cel').value,email:$('#u_em').value,papel:$('#u_pap').value});if(j.erro)throw new Error(j.erro);toast('Usuário cadastrado');e.target.reset();lista();carregaPerfil()}
     catch(x){er.textContent=x.message==='Failed to fetch'?'Sem internet.':x.message}b.disabled=false};
   lista();
@@ -167,11 +168,12 @@ async function lista(){const ul=$('#ul');if(!ul)return;
   let us;try{const j=await fn('admin-usuarios',{acao:'listar'});if(j.erro)throw new Error(j.erro);us=j.usuarios}catch(x){ul.innerHTML=`<li class="err">${esc(x.message==='Failed to fetch'?'Sem internet para carregar a lista.':x.message)}</li>`;return}
   $('#ucount').textContent=us.length+' no total';
   ul.innerHTML=us.map(u=>`<li data-id="${esc(u.id)}"><div><b>${esc(u.nome)}</b>${u.ativo?'':' <span class="tag w">desativado</span>'}${u.trocar_senha?' <span class="tag">senha inicial</span>':''}<div class="mut">${esc(u.email)}${u.celular?' · '+esc(u.celular):''}</div></div>
-  <div class="row"><select data-a="papel" aria-label="Qualificação">${Object.entries(PAPEL).map(([k,v])=>`<option value="${k}" ${u.papel===k?'selected':''}>${v}</option>`).join('')}</select><button class="ghost" data-a="ativo">${u.ativo?'Desativar':'Reativar'}</button><button class="ghost" data-a="reset">Voltar senha para 123456</button></div></li>`).join('');
+  <div class="row"><select data-a="papel" aria-label="Qualificação">${Object.entries(PAPEL).map(([k,v])=>`<option value="${k}" ${u.papel===k?'selected':''}>${v}</option>`).join('')}</select><button class="ghost" data-a="ativo">${u.ativo?'Desativar':'Reativar'}</button><button class="ghost" data-a="reset">Voltar senha para 123456</button></div><div class="row"><input type="text" data-a="cel" inputmode="tel" value="${esc(u.celular||'')}" placeholder="Celular com DDD" aria-label="Celular" style="flex:1;margin:0;min-width:160px"><button class="ghost" data-a="salvacel">Salvar celular</button></div></li>`).join('');
   ul.querySelectorAll('li[data-id]').forEach(li=>{const id=li.dataset.id,u=us.find(x=>x.id===id);
     const run=async(body,msg)=>{try{const j=await fn('admin-usuarios',{id,...body});if(j.erro)throw new Error(j.erro);toast(msg);lista();carregaPerfil()}catch(x){toast(x.message);lista()}};
     li.querySelector('[data-a=papel]').onchange=e=>run({acao:'atualizar',papel:e.target.value},'Qualificação alterada');
     li.querySelector('[data-a=ativo]').onclick=e=>{if(!e.target.dataset.sure){e.target.dataset.sure=1;e.target.textContent='Toque de novo para confirmar';return}run({acao:'atualizar',ativo:!u.ativo},u.ativo?'Usuário desativado':'Usuário reativado')};
+    li.querySelector('[data-a=salvacel]').onclick=()=>run({acao:'atualizar',celular:li.querySelector('[data-a=cel]').value},'Celular salvo');
     li.querySelector('[data-a=reset]').onclick=e=>{if(!e.target.dataset.sure){e.target.dataset.sure=1;e.target.textContent='Toque de novo para confirmar';return}run({acao:'resetar_senha'},'Senha voltou para 123456')};
   });
 }
@@ -180,7 +182,7 @@ function home(){
   app.innerHTML=`${nav()}<div class="stages">${Object.entries(STAGES).map(([k,s])=>`<button class="stage" data-st="${k}">${s.ico}<h2>${s.nome}</h2><p>${s.desc} ${total(k)} itens.</p></button>`).join('')}</div>
   ${d?`<div class="card"><h3>Checklist em andamento</h3><p class="mut">${esc(STAGES[d.st].nome)}, iniciado em ${fmt(d.inicio)}.</p><div class="actions"><button class="pri" id="cont">Continuar</button><button class="ghost" id="desc">Descartar</button></div></div>`:''}
   <div class="card"><h3>Histórico neste aparelho <small>${h.length} registro${h.length==1?'':'s'}</small></h3>
-  ${h.length?`<ul class="hist">${h.slice(0,30).map((r,i)=>`<li><div><b>${esc(STAGES[r.st].curto)}</b> · ${fmt(r.fim)}<div class="mut">${r.user?'Por '+esc(r.user.nome||r.user.email)+' · ':''}${esc(r.info.resp||'Sem responsável')}${r.info.local?' · '+esc(r.info.local):''}</div></div><div style="display:flex;gap:8px;align-items:center"><span class="tag ${r.ok<r.tot?'w':''}">${r.ok}/${r.tot}</span>${r.id&&!r.env?'<span class="tag w" title="Aguardando internet">não enviado</span>':''}<button class="ghost" data-ver="${i}">Ver</button></div></li>`).join('')}</ul>`:'<p class="mut">Nenhum checklist concluído ainda. Escolha uma etapa acima para começar.</p>'}</div>`;
+  ${h.length?`<ul class="hist">${h.slice(0,30).map((r,i)=>`<li><div><b>${esc(STAGES[r.st].curto)}</b> · ${fmt(r.fim)}<div class="mut">${r.user?'Por '+esc(r.user.nome||r.user.email)+' · ':''}${esc(r.info.resp||'Sem responsável')}${r.info.local?' · '+esc(r.info.local):''}</div></div><div style="display:flex;gap:8px;align-items:center"><span class="tag ${r.ok<r.tot?'w':''}">${r.ok}/${r.tot}</span>${r.id&&!r.env?'<span class="tag w" title="Aguardando internet">não salvo</span>':''}${r.id&&!r.wa?'<span class="tag w">WhatsApp pendente</span>':''}<button class="ghost" data-ver="${i}">Ver</button></div></li>`).join('')}</ul>`:'<p class="mut">Nenhum checklist concluído ainda. Escolha uma etapa acima para começar.</p>'}</div>`;
   bindNav();
   app.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{if(d&&!confirmInline(b))return;novo(b.dataset.st)});
   $('#cont')&&($('#cont').onclick=()=>{cur=d;form()});
@@ -225,21 +227,24 @@ async function sync(){
   for(const r of h){if(!r.id)continue;if(!r.user)r.user={id:sess.id,email:sess.email,nome:sess.nome};if(r.user.id!==sess.id)continue;
     if(!r.env){try{const res=await fetch(SUPA_URL+'/rest/v1/checklists',{method:'POST',headers:{apikey:SUPA_KEY,Authorization:'Bearer '+tk,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(payload(r))});
       if(res.ok||res.status===409){r.env=true;mud++}else break}catch(e){break}}
-    if(r.env&&!r.mail&&(r.mailTent||0)<3&&r.info.resp_id){r.mailTent=(r.mailTent||0)+1;try{const j=await fn('enviar-relatorio',{client_id:r.id});if(j.ok){r.mail=j.sem_responsavel?'sem':'ok';mail++}else r.mailErr=j.erro||'Falha no envio'}catch(e){}}
   }
-  if(mud||mail){ls.set('cc_hist',h);toast(mail?'Relatório enviado ao responsável':mud>1?mud+' checklists enviados':'Checklist enviado');if(!cur&&$('.stages'))home();const e=$('#envst');if(e){const r=h.find(x=>x.id===e.dataset.id);if(r)e.textContent=envTxt(r)}}
+  if(mud||mail){ls.set('cc_hist',h);toast(mud>1?mud+' checklists enviados':'Checklist enviado');if(!cur&&$('.stages'))home();const e=$('#envst');if(e){const r=h.find(x=>x.id===e.dataset.id);if(r)e.textContent=envTxt(r)}}
   }finally{syncing=false}
 }
 function waNum(r){const g=ls.get('cc_gestores',[]).find(x=>x.id===r.info.resp_id);let n=(g?.celular||'').replace(/\D/g,'');if(n&&n.length<=11)n='55'+n;return n}
-function envTxt(r){if(!r.env)return'Aguardando internet para enviar. O envio é automático.';if(r.mail==='ok')return'Enviado. Relatório enviado por e-mail para '+(r.info.resp||'o responsável')+'.';if(r.mailErr)return'Enviado ao sistema. O e-mail ao responsável não foi enviado ('+r.mailErr+').';return'Enviado ao sistema.'}
+function envTxt(r){return r.env?'Salvo no sistema.':'Sem internet: será salvo no sistema automaticamente quando o sinal voltar. O WhatsApp pode ser enviado agora.'}
 addEventListener('online',sync);setInterval(sync,60000);
+function textoWa(r){const S=STAGES[r.st],p=pendentes(r);let t=`*Checklist de campo: ${S.nome}*\nConcluído em ${fmt(r.fim)}\n`;FIELDS.forEach(([k,l])=>{if(r.info[k])t+=`${l}: ${r.info[k]}\n`});t+=p.length?`\n*${r.ok} de ${r.tot} itens conferidos. ${p.length} pendência(s):*\n${p.map(x=>'❌ '+x).join('\n')}\n`:`\n✅ Todos os ${r.tot} itens conferidos.\n`;if(r.obs)t+=`\nObservações: ${r.obs}\n`;if(r.user)t+=`\nPreenchido por: ${r.user.nome||r.user.email} (${r.user.email})`;return t}
 function texto(r){const S=STAGES[r.st],p=pendentes(r);let t=`CHECKLIST DE CAMPO: ${S.nome.toUpperCase()}\nConcluído em ${fmt(r.fim)}\n`;FIELDS.forEach(([k,l])=>{if(r.info[k])t+=`${l}: ${r.info[k]}\n`});t+=`\nItens conferidos: ${r.ok} de ${r.tot}\n`;S.secoes.forEach((s,si)=>{t+=`\n${s[0]}\n`;s[1].forEach((it,ii)=>t+=`${r.marc[si+'.'+ii]?'[x]':'[ ]'} ${it}\n`)});if(p.length)t+=`\nPENDÊNCIAS (${p.length}):\n${p.map(x=>'- '+x).join('\n')}\n`;if(r.obs)t+=`\nObservações: ${r.obs}\n`;if(r.user)t+=`\nPreenchido por: ${r.user.nome||r.user.email} (${r.user.email})\n`;return t}
 function resumo(r,novo){
   const t=texto(r),p=pendentes(r);
   app.innerHTML=`<div class="card" style="margin-top:20px;${p.length?'':'border-color:var(--g)'}"><h3>${novo?'Checklist concluído':STAGES[r.st].nome}<small>${fmt(r.fim)}</small></h3>
   <p style="margin:0 0 8px">${p.length?`<span class="tag w">${p.length} pendência${p.length>1?'s':''}</span>`:'<span class="tag">Todos os itens conferidos</span>'} <span class="mut">${r.ok} de ${r.tot} itens</span></p><p class="mut" id="envst" data-id="${esc(r.id||'')}" style="margin:0 0 8px">${esc(envTxt(r))}</p>
   <pre id="txt">${esc(t)}</pre>
-  <div class="actions"><button class="pri" id="cp">Copiar relatório</button><a class="btn sec" href="https://wa.me/${waNum(r)}?text=${encodeURIComponent(t)}" target="_blank" rel="noopener">${waNum(r)?'WhatsApp para '+esc(r.info.resp.split(' ')[0]):'Enviar por WhatsApp'}</a><button class="ghost" id="ini">Voltar ao início</button></div></div>`;
+  ${waNum(r)?'':`<p class="err" style="margin:0 0 8px">${r.info.resp?esc(r.info.resp)+' não tem celular cadastrado. Escolha o contato no WhatsApp.':''}</p>`}
+  <div class="actions"><a class="btn pri" id="wa" style="flex:1" href="https://wa.me/${waNum(r)}?text=${encodeURIComponent(textoWa(r))}" target="_blank" rel="noopener">${r.wa?'Reenviar':'Enviar'} pelo WhatsApp${r.info.resp?' para '+esc(r.info.resp.split(' ')[0]):''}</a></div>
+  <div class="actions"><button class="ghost" id="cp">Copiar relatório completo</button><button class="ghost" id="ini">Voltar ao início</button></div></div>`;
+  $('#wa').onclick=()=>{const h=ls.get('cc_hist',[]),x=h.find(y=>y.id===r.id);if(x){x.wa=Date.now();ls.set('cc_hist',h)}r.wa=1};
   $('#cp').onclick=async()=>{try{await navigator.clipboard.writeText(t);toast('Relatório copiado')}catch(e){const s=getSelection(),rg=document.createRange();rg.selectNodeContents($('#txt'));s.removeAllRanges();s.addRange(rg);toast('Texto selecionado, copie manualmente')}};
   $('#ini').onclick=home;scrollTo(0,0);
 }
